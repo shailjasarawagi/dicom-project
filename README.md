@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+## DICOM 2D Viewer (React + Cornerstone + Tailwind)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web app for viewing DICOM series in three orthogonal 2D views (Axial, Coronal, Sagittal). Fully client-side using Cornerstone and dicom-parser. Styled with Tailwind CSS.
 
-Currently, two official plugins are available:
+### Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Upload ZIP of DICOM files** (drag & drop or browse)
+- **3 synchronized viewports**: Axial, Coronal, Sagittal
+- **Basic viewport controls** (pan/zoom/scroll)
+- **Crosshair tool** with reference lines, slab thickness, and rotation handles (callbacks ready to wire to MIP/orientation)
+- **Window/Level controls** (center and width sliders)
+- **Automatic plane classification** using ImageOrientationPatient (IOP), with sensible fallbacks
 
-## React Compiler
+### Requirements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- npm
 
-## Expanding the ESLint configuration
+### Install & Run
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open the printed local URL (e.g., http://localhost:5173).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Project Structure (key files)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+  App.tsx
+  index.css                       # Tailwind directives
+  components/
+    DicomViewer/DicomViewer.tsx   # Header, tool toggle, 3 views grid
+    DicomViewport/DicomViewport.tsx # One viewport (render, controls, input)
+    CrosshairOverlay/CrosshairOverlay.tsx # Crosshair lines/handles (Tailwind only)
+    WindowLevelControls/WindowLevelControls.tsx
+    FileUpload/FileUpload.tsx
+    LoadingProgress/LoadingProgress.tsx
+  hooks/
+    useDicomParser.ts             # ZIP parsing, plane classification, progress state
+  utils/
+    cornerstoneInit.ts            # Cornerstone init + loaders
+  types/
+    dicom.ts
+```
+
+### How to Use
+
+1. Upload a ZIP containing `.dcm` files (nested folders OK). The app parses DICOM and groups by SeriesInstanceUID.
+2. The first series loads into 3 viewports.
+3. Click a viewport to activate it; controls target the active one.
+
+The parsing flow is handled by the React hook `useDicomParser`, which provides:
+
+- `parseZipFile(file)` to start parsing
+- `series`, `isLoading`, `error`, `hasLoaded` and progress fields `loadingProgress`, `loadingMessage`
+- `reset()` to clear state
+
+### Controls
+
+- **Basic (always on):**
+  - **Left click**: reserved for selected tool (no-op by default)
+  - **Middle click**: pan (drag)
+  - **Right click**: zoom (drag up/down; context menu is suppressed)
+  - **Mouse wheel**: stack scroll (slice up/down)
+- **Window/Level**: use the sliders under the viewport
+
+### Crosshair Tool
+
+- Toggle the tool in the viewer header (button: “Crosshair Tool”).
+- When enabled:
+  - **Move center**: click/drag anywhere to reposition crosshair center
+  - **Reference lines**: drag vertical/horizontal lines to scroll the other two viewports to matching slices
+  - **Square handles (near center)**: drag to change slab thickness (emits callback; wire to MIP when ready)
+  - **Circle handles (further)**: drag to rotate axes (emits callback; wire to orientation if needed)
+- Overlay uses pointer-events only on the interactive parts; basic controls still work underneath.
+
+### Plane Classification
+
+- Uses IOP to compute the slice normal and classify:
+  - **Axial**: normal ~ Z
+  - **Coronal**: normal ~ Y
+  - **Sagittal**: normal ~ X
+- Falls back to sorting by geometric axes if a plane is empty (so views are never blank on single-plane series).
+
+### Scripts
+
+- `npm run dev` — start dev server
+- `npm run build` — production build
+- `npm run preview` — preview build
+- `npm run lint` — run ESLint
+
+### Acknowledgments
+
+- Cornerstone, cornerstone-wado-image-loader
+- dicom-parser
+- JSZip
+- Tailwind CSS
